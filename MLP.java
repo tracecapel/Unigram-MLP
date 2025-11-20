@@ -1,40 +1,40 @@
 import java.util.HashMap;
+import java.util.Map;
 
 public class MLP {
   Perceptron[] hiddenLayer;
   Perceptron[] outputLayer;
   double learnrate;
+  int wordChunkSize;
 
   public MLP(int hiddenlayersize) {
+    this.wordChunkSize = 1;
     this.hiddenLayer = new Perceptron[hiddenlayersize];
     for (int i = 0; i < hiddenLayer.length; i++) {
-      hiddenLayer[i] = new Perceptron(1250);
+      hiddenLayer[i] = new Perceptron(wordChunkSize);
     }
-    this.outputLayer = new Perceptron[hiddenlayersize / 2];
-    for (int i = 0; i < hiddenLayer.length / 2; i++) {
-      outputLayer[i] = new Perceptron(1250);
+    this.outputLayer = new Perceptron[hiddenlayersize];
+    for (int i = 0; i < hiddenLayer.length; i++) {
+      outputLayer[i] = new Perceptron(hiddenLayer.length);
     }
+    this.learnrate = .1;
   }
 
   public int feedNetwork(int[] inputs) {
-    int zeros = 0;
-    
+    if (inputs.length != wordChunkSize) {
+      return 0;
+    }
 
-    
-    int outputIndex = 0;
     for (int i = 0; i < hiddenLayer.length; i++) {
       for (int j = 0; j < inputs.length; j++) {
+        // System.err.print("Input:  " + inputs[j] + " ");
         hiddenLayer[i].x[j] = inputs[j];
-        
       }
-      if (i % 2 == 0 && i >= 1) {
-        double firsthiddenNodeOutput = hiddenLayer[i - 1].activate();
+    }
 
-        double secondhiddenNodeOutput = hiddenLayer[i].activate();
-
-        outputLayer[outputIndex].x[0] = firsthiddenNodeOutput;
-        outputLayer[outputIndex].x[1] = secondhiddenNodeOutput;
-        outputIndex++;
+    for (int i = 0; i < outputLayer.length; i++) {
+      for (int j = 0; j < hiddenLayer.length; j++) {
+        outputLayer[i].x[j] = hiddenLayer[j].activate();
       }
     }
 
@@ -42,101 +42,95 @@ public class MLP {
   }
 
   public int getNetworkDecision() {
-    double outputMax = 0;
     int index = 0;
+
+    double max = 0;
     for (int i = 0; i < outputLayer.length; i++) {
-      if (outputLayer[i].activateOutput() > outputMax) {
-        outputMax = outputLayer[i].activateOutput();
+      double predict = outputLayer[i].activateOutput();
+      if (predict > max) {
+        max = predict;
         index = i;
+        // System.out.println(i);
       }
     }
+
+    // System.out.println(max);
     return index;
   }
 
-  public void backpropagate(int target) {
-    double outputWordNodePrediction = outputLayer[target].activateOutput();
-    double outputeWordNodeError = outputWordNodePrediction - target;
-    double outputWordNodeGrad =
-        outputWordNodePrediction * (1 - outputWordNodePrediction);
-    double outputWordNodeDelta = outputeWordNodeError * outputWordNodeGrad;
-
-    for (int i = 0; i < outputLayer[target].x.length; i++) {
-      outputLayer[target].w[i] = outputLayer[target].w[i]
-          + learnrate * outputWordNodeDelta * outputLayer[target].x[i];
+  public void printNetworkMappings(HashMap<String, Integer> wordMap) {
+    Map<Integer, String> reverseMap = new HashMap<>();
+    for (Map.Entry<String, Integer> entry : wordMap.entrySet()) {
+      reverseMap.put(entry.getValue(), entry.getKey());
     }
-    outputLayer[target].bias =
-        outputLayer[target].bias + learnrate * outputWordNodeDelta;
-
-    // Done updating output node for correct word
     for (int i = 0; i < outputLayer.length; i++) {
-      if (i == target) {
-        // Do nothing on correct node
-      } else {
-        double outputWordNodePredictionWrong = outputLayer[i].activateOutput();
-        double outputeWordNodeErrorWrong =
-            outputWordNodePredictionWrong - 0; // false
-        double outputWordNodeGradWrong =
-            outputWordNodePredictionWrong * (1 - outputWordNodePredictionWrong);
-        double outputWordNodeDeltaWrong =
-            outputeWordNodeErrorWrong * outputWordNodeGradWrong;
-        for (int j = 0; j < outputLayer[i].x.length; j++) {
-          outputLayer[i].w[j] = outputLayer[i].w[j]
-              + learnrate * outputWordNodeDeltaWrong * outputLayer[i].x[j];
-        }
-        outputLayer[i].bias =
-            outputLayer[i].bias + learnrate * outputWordNodeDelta;
+      // System.out.println("Output node: " + i + " mapped to word " +
+      // reverseMap.get(i) + " -> "+outputLayer[i].activateOutput());
+    }
+  }
+
+  public void backpropagate(int targetWordIndex) {
+    double[] outputDeltas = new double[outputLayer.length];
+
+    for (int i = 0; i < outputLayer.length; i++) {
+      double prediction = outputLayer[i].activateOutput();
+
+      double target = 0;
+      if (targetWordIndex == i) {
+        target = 1;
       }
+      double error = target - prediction;
+      double errorGrad = (prediction) * (1 - prediction);
+      double deltaOutput = error * errorGrad;
+      outputDeltas[i] = deltaOutput;
+
+      for (int j = 0; j < outputLayer[i].w.length; j++) {
+        outputLayer[i].w[j] =
+            outputLayer[i].w[j] + learnrate * deltaOutput * outputLayer[i].x[j];
+      }
+      outputLayer[i].bias = outputLayer[i].bias + learnrate * deltaOutput;
     }
 
-    // Hidden layer backprop
-
-    for (int i = 0; i < hiddenLayer.length; i++) {
-      int outputIndex = i / 2;
-
-      double output1Predict = outputLayer[outputIndex].activateOutput();
-      double output1Error = output1Predict - 0;
-      double output1Grad = output1Predict * (1 - output1Predict);
-      double output1Delta = output1Error * output1Grad;
-
-      double hiddenNodeGrad = 0;
-      if (hiddenLayer[i].getWeightedSum() > 0) {
-        hiddenNodeGrad = 1;
-      }
-      double hiddenNodeDelta = output1Delta * hiddenNodeGrad;
-
-      for (int j = 0; j < hiddenLayer[i].x.length; j++) {
-        hiddenLayer[i].w[j] = hiddenLayer[i].w[j]
-            + learnrate * hiddenNodeDelta * hiddenLayer[i].x[j];
-      }
-      hiddenLayer[i].bias = hiddenLayer[i].bias + learnrate * hiddenNodeDelta;
-    }
+    // Hidden layer updates
   }
 
   public void train(int epochs, HashMap<String, Integer> wordMap,
-    HashMap<Integer, String> convoMap) {
+      HashMap<Integer, String> convoMap) {
     int[][] wordToNums = Tokenize.tokenize(wordMap, convoMap);
     Map<Integer, String> reverseMap = new HashMap<>();
-    for (Map.Entry<String, Integer> entry : wordmap.entrySet()) {
-    reverseMap.put(entry.getValue(), entry.getKey());
-}
+    for (Map.Entry<String, Integer> entry : wordMap.entrySet()) {
+      reverseMap.put(entry.getValue(), entry.getKey());
+    }
 
-    for (int i = 0; i < wordToNums.length; i++) {
-      int[] context = new int[wordToNums[i].length];
-      int contextIndex = 0;
-      
-      for (int j = 0; j < wordToNums[i].length; j++) {
-        feedNetwork(context);
-        for(int i = 0; i < context.length; i++){
-          reverseMap.get(context[i]);
+    for (int epoch = 0; epoch < epochs; epoch++) {
+      // System.out.println(epoch + "/" + epochs);
+      for (int i = 0; i < wordToNums.length; i++) {
+        int[] context = new int[wordChunkSize];
+        int index = 0;
+        for (int j = 0; j < wordToNums[i].length; j++) {
+          context[index] = wordToNums[i][j];
+          index++;
+
+          if (index == wordChunkSize) {
+            // System.out.println("----------------START --------------------");
+            for (int g = 0; g < context.length; g++) {
+              //  System.out.print(reverseMap.get(context[g]) + " ");
+            }
+            // System.out.println();
+            feedNetwork(context);
+
+            if (j + 1 < wordToNums[i].length) {
+              // System.out.println("Trained on: " +
+              // reverseMap.get(wordToNums[i][j + 1]));
+              backpropagate(wordToNums[i][j + 1]);
+              // System.out.println("----------------END --------------------");
+            }
+
+            context = new int[wordChunkSize];
+            index = 0;
+          }
         }
-        backpropagate(wordToNums[i][j]);
-
-        context[contextIndex] = wordToNums[i][j];
       }
     }
   }
-
-  
-
-
 }
