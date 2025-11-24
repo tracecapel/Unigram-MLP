@@ -1,3 +1,4 @@
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
@@ -10,7 +11,7 @@ public class Parse {
     HashMap<Integer, String> map = new HashMap<>();
     int index = 0;
     Scanner scanner = new Scanner(file);
-    scanner.nextLine();
+    //scanner.nextLine();
     String conversation = "";
 
     while (scanner.hasNext()) {
