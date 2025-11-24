@@ -1,5 +1,8 @@
+
 import java.util.HashMap;
 import java.util.Map;
+
+
 
 public class MLP {
   Perceptron[] hiddenLayer;
