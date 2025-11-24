@@ -1,12 +1,53 @@
+
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
+
+
 public class Main {
-  public static void main(String[] args) throws FileNotFoundException {
+  public static void main(String[] args) throws FileNotFoundException, IOException {
     File file = new File("simple.csv");
+    Scanner scnr = new Scanner(System.in);
+    
+    while (true) {
+      
+      int sentences = 0;
+      System.out.println("Type a sentence for the model to train on. Type 'done' to train!");
+        String in = scnr.nextLine().trim();
+        if (in.equals("done") || sentences > 5) {
+          break;
+        }
+      
+      String formatted = "\"['" + in + "']\"";
+
+       try (FileWriter writer = new FileWriter(file,true)) {
+         PrintWriter pw = new PrintWriter(writer);
+
+         if (in.length() < 50) {
+          pw.println(formatted);
+        sentences++;
+      } else {
+          System.out.println("Sentence too long, try a shorter one!");
+        }
+        
+        
+        
+      } catch (FileNotFoundException e) {
+        throw e;
+      } catch (IOException e) {
+        // TODO Auto-generated catch block
+
+      }
+      
+
+    }
+    
     HashMap<Integer, String> convoMap = Parse.initializeConversationMap(file);
     HashMap<String, Integer> wordmap = Parse.initializeWordMap(convoMap);
     Map<Integer, String> reverseMap = new HashMap<>();
@@ -32,9 +73,9 @@ public class Main {
     }
     System.out.println("\n");
 
-    Scanner scnr = new Scanner(System.in);
+    
     System.out.println(
-        "Enter a sentence (the model will predict based on the last word):");
+        "Enter a sentence (the model will predict the next most likely word):");
     String sentence = scnr.nextLine().toLowerCase().trim();
 
     String[] words = sentence.split("\\s+");
